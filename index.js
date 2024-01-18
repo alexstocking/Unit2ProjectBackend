@@ -37,7 +37,7 @@ const pokemonSchema = new mongoose.Schema({
     },
     image: String,
     flavor_text: String,
-    editedBy: {
+    user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }
@@ -136,11 +136,15 @@ app.get('/pokemon', (req, res) => {
 
 app.get('/pokemon/:id', async (req, res) => {
     const id = req.params.id;
+    const userEmail = req.headers['user-email']
     const pokeApiUrl = `${pokeUrl}/pokemon/${id}`;
     const pokeSpeciesApiUrl = `${pokeUrl}/pokemon-species/${id}`;
 
     try {
-        const customPokemon = await Pokemon.findOne({ id: id }, { _id: 0, __v: 0 });
+        const findUser = await User.findOne({ 'userEmail': userEmail})
+        console.log(findUser)
+        const customPokemon = await Pokemon.findOne({ id: id }, { _id: 0, __v: 0 }).populate('user');
+        // console.log(customPokemon)
 
         if (customPokemon) {
             res.json(customPokemon);
@@ -192,7 +196,8 @@ app.get('/pokemon/:id', async (req, res) => {
                     speed: pokemonData.stats[5].base_stat,
                 },
                 image: getUniqueImageUrl(pokemonData.id),
-                flavor_text: formattedFlavorText
+                flavor_text: formattedFlavorText,
+                user: findUser._id
             };
 
             await Pokemon.findOneAndUpdate({ id: id }, updatedPokemon, { upsert: true });
@@ -229,7 +234,7 @@ app.post('/pokemon/add', (req, res) => {
         baseStats,
         image,
         flavor_text,
-        editedBy
+        user
     } = req.body;
 
     const newPokemon = new Pokemon({
@@ -242,7 +247,7 @@ app.post('/pokemon/add', (req, res) => {
         baseStats,
         image,
         flavor_text,
-        editedBy
+        user
     });
 
     const userId = req.body.userId
@@ -286,7 +291,7 @@ app.put('/pokemon/:id', (req, res) => {
         baseStats: req.body.baseStats,
         image: req.body.image,
         flavor_text: req.body.flavor_text,
-        editedBy: req.body.editedBy
+        user: req.body.user
     })
     .then(() => {
         res.sendStatus(200)
