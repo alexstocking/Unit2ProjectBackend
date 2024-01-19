@@ -139,8 +139,7 @@ router.get('/pokemon/:id', async (req, res) => {
 
     try {
         const findUser = await User.findOne({ 'userEmail': userEmail})
-        console.log(findUser)
-        const customPokemon = await Pokemon.findOne({ id: id }, { _id: 0, __v: 0 }).populate('user');
+        const customPokemon = await Pokemon.findOne({ id: id }, { _id: 0, __v: 0 })
 
         if (customPokemon) {
             res.json(customPokemon);
@@ -193,7 +192,7 @@ router.get('/pokemon/:id', async (req, res) => {
                 },
                 image: getUniqueImageUrl(pokemonData.id),
                 flavor_text: formattedFlavorText,
-                user: findUser._id
+                user: findUser
             };
 
             await Pokemon.findOneAndUpdate({ id: id }, updatedPokemon, { upsert: true });
