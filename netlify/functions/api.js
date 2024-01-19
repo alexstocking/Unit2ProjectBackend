@@ -79,7 +79,7 @@ router.get('/', (req, res) => {
 
 
 router.get('/pokemon', (req, res) => {
-    const limit = 1025;
+    const limit = 20;
     const pokeListUrl = `${pokeUrl}/pokemon?limit=${limit}`;
 
     fetch(pokeListUrl)
