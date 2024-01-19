@@ -79,7 +79,7 @@ router.get('/', (req, res) => {
 
 
 router.get('/pokemon', (req, res) => {
-    const limit = 20;
+    const limit = 1025;
     const pokeListUrl = `${pokeUrl}/pokemon?limit=${limit}`;
 
     fetch(pokeListUrl)
@@ -90,30 +90,35 @@ router.get('/pokemon', (req, res) => {
             return response.json();
         })
         .then((allPokemon) => {
-            const pokeApiPokemonList = allPokemon.results.map((pokemon) => {
-                return fetch(`${pokeUrl}/pokemon/${pokemon.name}`)
-                    .then((pokemonDetailResponse) => {
-                        if (!pokemonDetailResponse.ok) {
-                            throw new Error(`Failed to fetch data for ${pokemon.name}`);
-                        }
-                        return pokemonDetailResponse.json();
-                    })
-                    .then((pokemonDetailData) => {
+            const pokeApiPokemonList = allPokemon.results.map((pokemon, key) => {
+                // return fetch(`${pokeUrl}/pokemon/${pokemon.name}`)
+                //     .then((pokemonDetailResponse) => {
+                //         if (!pokemonDetailResponse.ok) {
+                //             throw new Error(`Failed to fetch data for ${pokemon.name}`);
+                //         }
+                //         return pokemonDetailResponse.json();
+                //     })
+                //     .then((pokemonDetailData) => {
+                        // let uniqueImg = ''
+                        // if (pokemonDetailData.id < 1018 && pokemonDetailData.id !== 1013) {
+                        //     uniqueImg = `${imageUrl}/${pokemonDetailData.id}.png`
+                        // } else {
+                        //     uniqueImg = `${altImageUrl}/${pokemonDetailData.id}.png`
+                        // }
                         let uniqueImg = ''
-                        if (pokemonDetailData.id < 1018 && pokemonDetailData.id !== 1013) {
-                            uniqueImg = `${imageUrl}/${pokemonDetailData.id}.png`
+                        if ((key + 1) < 1018 && (key + 1) !== 1013) {
+                            uniqueImg = `${imageUrl}/${(key + 1)}.png`
                         } else {
-                            uniqueImg = `${altImageUrl}/${pokemonDetailData.id}.png`
+                            uniqueImg = `${altImageUrl}/${(key + 1)}.png`
                         }
 
                         return {
-                            id: pokemonDetailData.id,
-                            name: pokemonDetailData.name,
+                            id: key + 1,
+                            name: pokemon.name,
                             image: uniqueImg,
                         };
-                    });
+                    // });
             });
-
             return Promise.all(pokeApiPokemonList);
         })
         .then((pokeApiPokemonList) => {
