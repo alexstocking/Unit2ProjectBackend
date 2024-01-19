@@ -1,19 +1,15 @@
 import 'dotenv/config'
-import express from 'express'
+import express, { Router } from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
 import mongoose from 'mongoose'
+import serverless from 'serverless-http'
 
-const app = express()
+const api = express()
 
-app.use(cors())
-app.use(bodyParser.json())
+api.use(cors())
+api.use(bodyParser.json())
 
-const port = process.env.PORT || 4000
-
-app.listen(port, () => {
-    console.log(`Listening on port: ${port}`)
-})
 
 mongoose.connect(process.env.DATABASE_URL)
 let pokeUrl = process.env.POKEDATABASE_URL
@@ -73,15 +69,16 @@ const Pokemon = mongoose.model('Pokemon', pokemonSchema)
 const Game = mongoose.model('Game', gameSchema)
 const User = mongoose.model('User', userSchema)
 
+const router = Router()
 
-app.get('/', (req, res) => {
+router.get('/', (req, res) => {
     res.json({
         message: 'Welcome to the Pokedex'
     })
 })
 
 
-app.get('/pokemon', (req, res) => {
+router.get('/pokemon', (req, res) => {
     const limit = 1025;
     const pokeListUrl = `${pokeUrl}/pokemon?limit=${limit}`;
 
@@ -134,7 +131,7 @@ app.get('/pokemon', (req, res) => {
         });
 });
 
-app.get('/pokemon/:id', async (req, res) => {
+router.get('/pokemon/:id', async (req, res) => {
     const id = req.params.id;
     const userEmail = req.headers['user-email']
     const pokeApiUrl = `${pokeUrl}/pokemon/${id}`;
@@ -142,12 +139,11 @@ app.get('/pokemon/:id', async (req, res) => {
 
     try {
         const findUser = await User.findOne({ 'userEmail': userEmail})
-        const customPokemon = await Pokemon.findOne({ id: id }, { _id: 0, __v: 0 });
+        console.log(findUser)
+        const customPokemon = await Pokemon.findOne({ id: id }, { _id: 0, __v: 0 }).populate('user');
 
         if (customPokemon) {
             res.json(customPokemon);
-            console.log(customPokemon.user)
-            console.log(findUser) 
         } else {
             const [pokemonResponse, speciesResponse] = await Promise.all([
                 fetch(pokeApiUrl),
@@ -197,7 +193,7 @@ app.get('/pokemon/:id', async (req, res) => {
                 },
                 image: getUniqueImageUrl(pokemonData.id),
                 flavor_text: formattedFlavorText,
-                user: findUser
+                user: findUser._id
             };
 
             await Pokemon.findOneAndUpdate({ id: id }, updatedPokemon, { upsert: true });
@@ -213,6 +209,7 @@ app.get('/pokemon/:id', async (req, res) => {
     }
 });
 
+
 function getUniqueImageUrl(id) {
     if (id < 1018 && id !== 1013) {
         return `${imageUrl}/${id}.png`;
@@ -222,8 +219,7 @@ function getUniqueImageUrl(id) {
         return `${imageUrl}/${id}.png`;
     }
 }
-
-app.post('/pokemon/add', (req, res) => {
+router.post('/pokemon/add', (req, res) => {
     const {
         id,
         name,
@@ -270,7 +266,7 @@ app.post('/pokemon/add', (req, res) => {
         });
 });
 
-app.delete('/pokemon/:id', (req, res) => {
+router.delete('/pokemon/:id', (req, res) => {
     Pokemon.deleteOne({id: req.params.id})
     .then(() => {
         res.sendStatus(200)
@@ -280,9 +276,7 @@ app.delete('/pokemon/:id', (req, res) => {
     })
 })
 
-app.put('/pokemon/:id', async (req, res) => {
-    // const userEmail = req.headers['user-email']
-    // const findUser = await User.findOne({ 'userEmail': userEmail})
+router.put('/pokemon/:id', (req, res) => {
     Pokemon.updateOne({id: req.params.id}, {
         id: req.body.id,
         name: req.body.name,
@@ -295,7 +289,6 @@ app.put('/pokemon/:id', async (req, res) => {
         flavor_text: req.body.flavor_text,
         user: req.body.user
     })
-    
     .then(() => {
         res.sendStatus(200)
     })
@@ -304,7 +297,7 @@ app.put('/pokemon/:id', async (req, res) => {
     })
 })
 
-app.post('/user/login', async (req, res) => {
+router.post('/user/login', async (req, res) => {
     const now = new Date()
 
     if( await User.countDocuments({"userEmail": req.body.userEmail}) === 0) {
@@ -325,17 +318,17 @@ app.post('/user/login', async (req, res) => {
     }
 })
 
-app.get('/games', async (req, res) => {
+router.get('/games', async (req, res) => {
     const game = await Game.find({}).sort('generation')
     res.json(game)
 })
 
-app.get('/games/:id', async (req, res) => {
+router.get('/games/:id', async (req, res) => {
     const game = await Game.findById(req.params.id)
     res.json(game)
 })
 
-app.put('/games/:id', (req, res) => {
+router.put('/games/:id', (req, res) => {
     Game.updateOne({"_id": req.params.id}, {
         generation: req.body.generation,
         gamesReleased: req.body.gamesReleased,
@@ -353,7 +346,7 @@ app.put('/games/:id', (req, res) => {
     })
 })
 
-app.post('/games/add', (req, res) => {
+router.post('/games/add', (req, res) => {
     const game = req.body
     const newGame = new Game({
         generation: parseInt(game.generation),
@@ -372,7 +365,7 @@ app.post('/games/add', (req, res) => {
     .catch(err => console.error(err))
 })
 
-app.delete('/games/:id', (req, res) => {
+router.delete('/games/:id', (req, res) => {
     const gameId = req.params.id
     Game.findByIdAndDelete(gameId)
     .then((deletedGame) => {
@@ -387,3 +380,7 @@ app.delete('/games/:id', (req, res) => {
         res.sendStatus(500)
     })
 })
+
+api.use("/api/", router)
+
+export const handler = serverless(api)
